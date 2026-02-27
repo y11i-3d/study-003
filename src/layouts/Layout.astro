@@ -1,0 +1,52 @@
+---
+import { Font } from "astro:assets";
+import "../styles/global.css";
+
+const title = `${import.meta.env.TITLE} | ${import.meta.env.USER_NAME}`;
+const description = import.meta.env.DESCRIPTION;
+const image = new URL(`${import.meta.env.BASE_URL}/share.png`, Astro.site);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    {/* Meta */}
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    {/* OGP */}
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={Astro.url} />
+    <meta property="og:image" content={image} />
+
+    {/* Twitter */}
+    <meta name="twitter:card" content="summary_large_image" />
+
+    {/* Favicon */}
+    <link
+      rel="icon"
+      href={`${import.meta.env.BASE_URL}/favicon.ico`}
+      sizes="32x32"
+    />
+    <link
+      rel="icon"
+      href={`${import.meta.env.BASE_URL}/favicon.svg`}
+      sizes="any"
+      type="image/svg+xml"
+    />
+    <link
+      rel="apple-touch-icon"
+      href={`${import.meta.env.BASE_URL}/apple-touch-icon.png`}
+    />
+
+    {/* Font */}
+    <Font cssVariable="--font-sans" preload />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

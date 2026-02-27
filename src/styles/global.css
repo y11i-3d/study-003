@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@layer base {
+  html,
+  body {
+    line-height: normal;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+}
+
+@theme {
+  --font-sans: "Roboto Condensed", "sans-serif";
+}

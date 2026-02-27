@@ -1,0 +1,9 @@
+---
+import GitHub from "./GitHub.astro";
+import Title from "./Title.astro";
+import { UiController } from "./UiController";
+---
+
+<GitHub />
+<Title />
+<UiController client:only="react" />

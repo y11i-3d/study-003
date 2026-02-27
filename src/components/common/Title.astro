@@ -1,0 +1,11 @@
+---
+const { TITLE } = import.meta.env;
+const [id, keywords] = (TITLE || "").split(": ");
+---
+
+<h1
+  class="fixed bottom-4 left-4 z-10 flex flex-wrap items-end font-black select-none [text-shadow:0_0_16px_rgba(255,255,255,0.1)] in-[html.hide-ui]:hidden"
+>
+  <span class="text-base md:text-3xl lg:text-4xl">{id}:&nbsp;</span>
+  <span class="text-2xl md:text-5xl lg:text-6xl">{keywords}</span>
+</h1>
