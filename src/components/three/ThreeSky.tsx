@@ -1,8 +1,5 @@
-import {
-  buildSkyConfig,
-  cloudColor,
-  skyColor,
-} from "@/components/three/tsl/sky";
+import { cloud } from "@/components/three/tsl/cloud";
+import { buildSkyConfig, skyColor } from "@/components/three/tsl/sky";
 import { CubicIn, ExpoOut, QuadOut } from "@/scripts/gsap/gsapUtils";
 import gsap from "gsap";
 import { useAtomValue, useStore } from "jotai";
@@ -161,6 +158,12 @@ export const ThreeSky = () => {
     };
   }, [animation, store, atoms]);
 
+  const useCellular = useAtomValue(atoms.useCellular);
+  const invertedCellular = useAtomValue(atoms.invertedCellular);
+  const useLiteCellular = useAtomValue(atoms.useLiteCellular);
+
+  console.log(useCellular, invertedCellular, useLiteCellular);
+
   const colorNode = useMemo(() => {
     const direction = normalize(positionWorld.sub(cameraPosition));
     const zenithAngle = acos(max(0.0, dot(uniforms.upUniform, direction)));
@@ -179,7 +182,11 @@ export const ThreeSky = () => {
       zenithAngle,
     );
 
-    const clouds = cloudColor(
+    const cloudMask = cloud(
+      useCellular,
+      useLiteCellular,
+      invertedCellular,
+
       uniforms.cloudScale,
       uniforms.cloudHorizon,
       uniforms.cloudDirection,
@@ -190,15 +197,12 @@ export const ThreeSky = () => {
       uniforms.cloudMix,
       direction,
       zenithAngle,
-      Orange,
-      uniforms.useCellular,
-      uniforms.invertedCellular,
-      uniforms.useLiteCellular,
     );
+    const clouds = cloudMask.mul(Orange);
 
     return vec4(sky.rgb.add(clouds), 1.0);
     //return vec4(sky.rgb, 1.0);
-  }, [uniforms]);
+  }, [uniforms, useCellular, invertedCellular, useLiteCellular]);
 
   return (
     <mesh scale={SCALE}>

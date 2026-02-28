@@ -3,14 +3,7 @@
  * */
 
 import {
-  cellularNoise3_2x2x2,
-  cellularNoise3_3x3x3,
-} from "@y11i-3d/tsl-cellular-noise";
-import { psrddNoise3 } from "@y11i-3d/tsl-psrdnoise";
-import {
   Fn,
-  If,
-  Loop,
   add,
   clamp,
   cos,
@@ -20,12 +13,8 @@ import {
   mix,
   mul,
   pow,
-  select,
-  sin,
   smoothstep,
   sub,
-  time,
-  vec2,
   vec3,
   vec4,
 } from "three/tsl";
@@ -186,54 +175,6 @@ const calcBetaRTheta = Fn(
   },
 );
 
-const fractNoise3 = Fn(
-  ([params, octaves, lacunarity, diminish, amplitude]: [
-    params: Node<"vec3">,
-    octaves: Node<"int">,
-    lacunarity: Node<"float">,
-    diminish: Node<"float">,
-    amplitude: Node<"float">,
-  ]) => {
-    const p = params.toVar();
-    const n = float(0.0).toVar();
-    const a = amplitude.toVar();
-    Loop(octaves as unknown as number, () => {
-      n.addAssign(a.mul(psrddNoise3(p).noise));
-      a.mulAssign(diminish);
-      p.mulAssign(lacunarity);
-    });
-    return n;
-  },
-);
-
-const fractCellularNoise3 = Fn(
-  ([params, octaves, lacunarity, diminish, amplitude, useLow]: [
-    params: Node<"vec3">,
-    octaves: Node<"int">,
-    lacunarity: Node<"float">,
-    diminish: Node<"float">,
-    amplitude: Node<"float">,
-    useLite: Node<"int">,
-  ]) => {
-    const p = params.toVar();
-    const n = float(0.0).toVar();
-    const a = amplitude.toVar();
-    Loop(octaves as unknown as number, () => {
-      const f = select(
-        useLow.equal(1),
-        cellularNoise3_2x2x2(p),
-        cellularNoise3_3x3x3(p),
-      );
-      n.addAssign(a.mul(f));
-      a.mulAssign(diminish);
-      p.mulAssign(lacunarity);
-    });
-    return n;
-  },
-);
-
-const offset = vec4(Math.random(), Math.random(), Math.random(), Math.random());
-
 // Note: skyColor is a plain TS function rather than Fn() because it needs to
 // return multiple nodes as an object. As a consequence, assign()/mulAssign()
 // cannot be used here.
@@ -342,120 +283,3 @@ export const skyColor = (
     Lin,
   };
 };
-
-export const cloudColor = Fn(
-  ([
-    cloudScale,
-    cloudHorizon,
-    cloudDirection,
-    cloudSpeed,
-    cloudEvolution,
-    cloudCoverage,
-    cloudScaleRate,
-    cloudMix,
-    viewDirection,
-    zenithAngle,
-    Orange,
-    useCellular,
-    invertedCellular,
-    useLiteCellular,
-  ]: [
-    cloudScale: Node<"float">,
-    cloudHorizon: Node<"vec2">,
-    cloudDirection: Node<"float">,
-    cloudSpeed: Node<"float">,
-    cloudEvolution: Node<"float">,
-    cloudCoverage: Node<"float">,
-    cloudScaleRate: Node<"float">,
-    cloudMix: Node<"float">,
-    viewDirection: Node<"vec3">,
-    zenithAngle: Node<"float">,
-    Orange: Node<"vec3">,
-    useCellular: Node<"int">,
-    invertedCellular: Node<"int">,
-    useLiteCellular: Node<"int">,
-  ]) => {
-    const res = vec3(0).toVar();
-
-    If(viewDirection.y.greaterThan(0.0), () => {
-      const elevation = 0.1;
-      const cloudUV = viewDirection.xz
-        .div(viewDirection.y.mul(elevation))
-        .toVar();
-      cloudUV.mulAssign(0.05);
-
-      const dirRad = cloudDirection.mul(Math.PI / 180.0);
-      const velocity = vec2(sin(dirRad).mul(-1.0), cos(dirRad)).mul(cloudSpeed);
-
-      const cloudOffset = vec3(
-        time.mul(velocity.x),
-        time.mul(velocity.y),
-        time.mul(cloudEvolution),
-      );
-
-      const octaves = 5;
-      const lacunarity = 2;
-      const diminish = 0.5;
-      const amplitude = 1;
-      const maxValue = (amplitude * (1 - diminish ** octaves)) / (1 - diminish);
-
-      const noise1 = fractNoise3(
-        vec3(cloudUV.mul(cloudScale), 0).add(cloudOffset).add(offset.xyz),
-        octaves,
-        lacunarity,
-        diminish,
-        amplitude,
-      );
-      const noise2Params = vec3(cloudUV.mul(cloudScaleRate).mul(cloudScale), 0)
-        .add(cloudOffset)
-        .add(offset.xyz);
-      const noise2Cellular = fractCellularNoise3(
-        noise2Params,
-        octaves,
-        lacunarity,
-        diminish,
-        amplitude,
-        useLiteCellular,
-      ).div(maxValue);
-      const noise2Normal = fractNoise3(
-        noise2Params,
-        octaves,
-        lacunarity,
-        diminish,
-        amplitude,
-      )
-        .mul(0.5)
-        .add(0.5);
-      const cloudNoise1 = noise1.mul(0.5).add(0.5);
-
-      const cellularRaw = select(
-        invertedCellular.equal(1),
-        float(1).sub(noise2Cellular),
-        noise2Cellular,
-      );
-      const cloudNoise2 = select(
-        useCellular.equal(1),
-        cellularRaw,
-        noise2Normal,
-      );
-
-      //const cloudNoise2 = noise2.mul(0.5).add(0.5).mul(0.5);
-
-      const cloudNoise = mix(cloudNoise1, cloudNoise2, cloudMix);
-      const cloudMask = smoothstep(cloudCoverage, 1.0, cloudNoise).toVar();
-
-      // Fade clouds near horizon based on elevation angle
-      const elevationAngle = float(Math.PI / 2.0).sub(zenithAngle);
-      const horizonFade = smoothstep(
-        cloudHorizon.x,
-        cloudHorizon.y,
-        elevationAngle,
-      );
-      cloudMask.mulAssign(horizonFade);
-
-      res.assign(cloudMask.mul(Orange));
-    });
-
-    return res;
-  },
-);
