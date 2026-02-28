@@ -19,6 +19,7 @@ export const Three = () => {
           await renderer.init();
           return renderer;
         }}
+        dpr={[1, 1.75]}
       >
         <ThreeProvider>
           <ThreeSetup></ThreeSetup>

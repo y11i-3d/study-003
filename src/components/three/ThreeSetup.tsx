@@ -18,13 +18,15 @@ export const ThreeSetup = () => {
   const { gl } = useThree();
 
   const setLabel = useSetAtom(atoms.rendererLabel);
+  const setDpr = useSetAtom(atoms.dpr);
   const toneMapping = useAtomValue(atoms.toneMapping);
   const exposure = useAtomValue(atoms.exposure);
 
   useEffect(() => {
     const renderer = gl as unknown as WebGPURendererWithBackend;
     setLabel(renderer.backend.isWebGPUBackend === true ? "WebGPU" : "WebGL");
-  }, [gl, setLabel, atoms.rendererLabel]);
+    setDpr(gl.getPixelRatio().toFixed(2));
+  }, [gl, setLabel, setDpr, atoms.rendererLabel]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/immutability

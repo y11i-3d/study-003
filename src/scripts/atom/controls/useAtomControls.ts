@@ -1,4 +1,4 @@
-import type { PrimitiveAtom } from "jotai";
+import type { Atom, PrimitiveAtom } from "jotai";
 import { useStore } from "jotai";
 import type { Store } from "jotai/vanilla/store";
 import { button, folder, useControls } from "leva";
@@ -105,7 +105,8 @@ const buildScheme = (
   const result: Record<string, SchemaItemWithOptions> = {};
   for (const [vKey, vVal] of Object.entries(values)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const item: any = { value: vVal };
+    const item: any =
+      p.type === "string" ? { type: "STRING", value: vVal } : { value: vVal };
 
     if (p.type === "vec2" || p.type === "vec3" || p.type === "vec4") {
       const axis = vKey.split("_").pop() as "x" | "y" | "z" | "w";
@@ -121,25 +122,28 @@ const buildScheme = (
       };
     } else {
       Object.assign(item, p.settings);
-      item.onChange = (
-        v: unknown,
-        _path: string,
-        ctx: { initial: boolean },
-      ) => {
-        if (ctx.initial) return;
-        if (p.type === "boolNumber") {
-          const next = p.onChange
-            ? p.onChange(v as boolean)
-            : v
-              ? p.truthy
-              : p.falsy;
-          store.set(p.atom, next);
-        } else {
-          const next = p.onChange ? p.onChange(v) : v;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          store.set(p.atom as any, next);
-        }
-      };
+      const isReadOnly = !("write" in p.atom);
+      if (!isReadOnly) {
+        item.onChange = (
+          v: unknown,
+          _path: string,
+          ctx: { initial: boolean },
+        ) => {
+          if (ctx.initial) return;
+          if (p.type === "boolNumber") {
+            const next = p.onChange
+              ? p.onChange(v as boolean)
+              : v
+                ? p.truthy
+                : p.falsy;
+            store.set(p.atom, next);
+          } else {
+            const next = p.onChange ? p.onChange(v) : v;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            store.set(p.atom as any, next);
+          }
+        };
+      }
     }
     result[vKey] = item as SchemaItemWithOptions;
   }
@@ -180,7 +184,7 @@ export const useAtomControls = (params: AtomControlParams) => {
 
   useEffect(() => {
     const unsubs = collectAtoms(params).map(([key, controller]) => {
-      const atom = controller[1] as PrimitiveAtom<unknown>;
+      const atom = controller[1] as Atom<unknown>;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sync = () => set(getLevaValues(key, controller, store) as any);
       const unsub = store.sub(atom, sync);

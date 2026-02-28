@@ -1,5 +1,6 @@
 import { defineAtomControls } from "@/scripts/atom/controls/types";
 import { useAtomControls } from "@/scripts/atom/controls/useAtomControls";
+import { useFpsAtoms } from "@/scripts/atom/useFpsAtoms";
 import { atom } from "jotai";
 import { useMemo } from "react";
 import {
@@ -18,6 +19,7 @@ export const useAtoms = () => {
   const atoms = useMemo(() => {
     return {
       rendererLabel: atom(""),
+      dpr: atom("1"),
       toneMapping: atom<ToneMapping>(ACESFilmicToneMapping),
       exposure: atom(0.5),
 
@@ -40,6 +42,8 @@ export const useAtoms = () => {
       animation: atom(false),
     };
   }, []);
+
+  const fpsAtoms = useFpsAtoms();
 
   const params = useMemo(
     () =>
@@ -100,6 +104,8 @@ export const useAtoms = () => {
         ],
         others: {
           children: {
+            fps: ["string", fpsAtoms.fpsStr, { editable: false }],
+            dpr: ["string", atoms.dpr, { editable: false }],
             rendererLabel: ["string", atoms.rendererLabel, { editable: false }],
             toneMapping: [
               "options",
@@ -151,7 +157,7 @@ export const useAtoms = () => {
   );
   useAtomControls(params);
 
-  return useMemo(() => ({ ...atoms }), [atoms]);
+  return { ...atoms, ...fpsAtoms };
 };
 
 export type Atoms = ReturnType<typeof useAtoms>;

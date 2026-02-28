@@ -1,4 +1,4 @@
-import type { PrimitiveAtom } from "jotai";
+import type { Atom, PrimitiveAtom } from "jotai";
 import type {
   ButtonSettings,
   FolderSettings,
@@ -52,7 +52,7 @@ export type BooleanControllerParams = [
 
 export type StringControllerParams = [
   type: "string",
-  atom: PrimitiveAtom<string>,
+  atom: Atom<string>,
   settings?: StringSchemeSettings,
   onChange?: Transform<string>,
   onInit?: Transform<string>,
