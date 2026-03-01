@@ -1,18 +1,43 @@
 import { createContext, useContext, useMemo } from "react";
-import { useAtoms, type Atoms } from "./hooks/useAtoms";
+import {
+  useCloudeStates,
+  type CloudAtoms,
+  type CloudUniforms,
+} from "./cloud/useCloudStates";
+import {
+  useSkyStates,
+  type SkyAtoms,
+  type SkyUniforms,
+} from "./sky/useSkyStates";
+import { useCommonStates, type CommonAtoms } from "./useCommonStates";
 
-type ThreeContextValue = { atoms: Atoms };
+type ThreeContextValue = {
+  atoms: CommonAtoms & CloudAtoms & SkyAtoms;
+  uniforms: CloudUniforms & SkyUniforms;
+};
 
 const ThreeContext = createContext<ThreeContextValue | null>(null);
 
 export const ThreeProvider = ({ children }: { children: React.ReactNode }) => {
-  const atoms = useAtoms();
+  const cloudStates = useCloudeStates();
+  const skyStates = useSkyStates();
+  const commonStates = useCommonStates();
 
   const value = useMemo(
     () => ({
-      atoms,
+      atoms: {
+        ...commonStates.atoms,
+        ...cloudStates.atoms,
+        ...skyStates.atoms,
+      },
+      uniforms: {
+        ...cloudStates.uniforms,
+        ...skyStates.uniforms,
+      },
     }),
-    [atoms],
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
 
   return (

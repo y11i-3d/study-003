@@ -1,10 +1,11 @@
 import { Canvas } from "@react-three/fiber";
 import { Leva } from "leva";
 import { WebGPURenderer } from "three/webgpu";
+import { ThreeCloud } from "./cloud/ThreeCloud";
+import { ThreeSky } from "./sky/ThreeSky";
 import { ThreeCamera } from "./ThreeCamera";
 import { ThreeProvider } from "./ThreeProvider";
 import { ThreeSetup } from "./ThreeSetup";
-import { ThreeSky } from "./ThreeSky";
 
 type WebGPURendererParameters = ConstructorParameters<typeof WebGPURenderer>[0];
 
@@ -24,6 +25,7 @@ export const Three = () => {
         <ThreeProvider>
           <ThreeSetup></ThreeSetup>
           <ThreeCamera />
+          <ThreeCloud />
           <ThreeSky />
         </ThreeProvider>
       </Canvas>

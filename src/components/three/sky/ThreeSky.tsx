@@ -1,10 +1,9 @@
-import { cloud } from "@/components/three/tsl/cloud";
-import { buildSkyConfig, skyColor } from "@/components/three/tsl/sky";
+import { buildSkyConfig, skyColor } from "@/components/three/sky/sky";
 import { CubicIn, ExpoOut, QuadOut } from "@/scripts/gsap/gsapUtils";
 import gsap from "gsap";
 import { useAtomValue, useStore } from "jotai";
 import { useEffect, useMemo } from "react";
-import { BackSide, MathUtils, Vector2 } from "three";
+import { BackSide, MathUtils } from "three";
 import {
   Fn,
   acos,
@@ -14,45 +13,18 @@ import {
   modelViewProjection,
   normalize,
   positionWorld,
-  uniform,
+  screenUV,
+  texture,
+  vec3,
   vec4,
 } from "three/tsl";
-import { Vector3 } from "three/webgpu";
-import { useThreeContext } from "./ThreeProvider";
-
-const UP: [number, number, number] = [0, 1, 0];
-const SCALE = 10000;
+import { type Node } from "three/webgpu";
+import { useThreeContext } from "../ThreeProvider";
+import { cloud } from "../cloud/cloud";
 
 export const ThreeSky = () => {
   const store = useStore();
-  const { atoms } = useThreeContext();
-
-  const uniforms = useMemo(() => {
-    return {
-      sunDirection1: uniform(new Vector3(0, 1, 0)),
-      sunDirection2: uniform(new Vector3(0, 1, 0)),
-      sunE1: uniform(0),
-      sunE2: uniform(0),
-      betaR1: uniform(new Vector3()),
-      betaR2: uniform(new Vector3()),
-      sunfade: uniform(1),
-      betaM: uniform(new Vector3()),
-      upUniform: uniform(new Vector3(...UP)),
-      mieDirectionalG: uniform(0.85),
-      showSunDiskUniform: uniform(0),
-      cloudScale: uniform(0),
-      cloudScaleRate: uniform(0),
-      cloudMix: uniform(0),
-      cloudDirection: uniform(0),
-      cloudSpeed: uniform(0),
-      cloudEvolution: uniform(0),
-      cloudHorizon: uniform(new Vector2()),
-      cloudCoverage: uniform(0),
-      useCellular: uniform(1),
-      invertedCellular: uniform(1),
-      useLiteCellular: uniform(1),
-    };
-  }, []);
+  const { atoms, uniforms } = useThreeContext();
 
   const onUpdateUniform = () => {
     const horizon = 5;
@@ -86,45 +58,10 @@ export const ThreeSky = () => {
     uniforms.betaR2.value.copy(p.betaR2);
     uniforms.sunfade.value = p.sunfade;
     uniforms.betaM.value.copy(p.betaM);
-    uniforms.upUniform.value.set(...UP);
     uniforms.mieDirectionalG.value = Math.sqrt(sunGlow);
-    uniforms.cloudScale.value = Math.pow(2, -store.get(atoms.cloudScale));
-    uniforms.cloudScaleRate.value = Math.pow(
-      2,
-      store.get(atoms.cloudScaleRate),
-    );
-    uniforms.cloudMix.value = store.get(atoms.cloudMix);
-    uniforms.cloudDirection.value = store.get(atoms.cloudDirection);
-    uniforms.cloudSpeed.value = store.get(atoms.cloudSpeed) * 0.1;
-    uniforms.cloudEvolution.value = store.get(atoms.cloudEvolution) * 0.1;
-    uniforms.cloudCoverage.value = 1.0 - store.get(atoms.cloudCoverage);
-    uniforms.useCellular.value = store.get(atoms.useCellular) ? 1 : 0;
-    uniforms.invertedCellular.value = store.get(atoms.invertedCellular) ? 1 : 0;
-    uniforms.useLiteCellular.value = store.get(atoms.useLiteCellular) ? 1 : 0;
-
-    const fade = store.get(atoms.cloudHorizon);
-    uniforms.cloudHorizon.value.set(
-      MathUtils.degToRad(fade.x),
-      MathUtils.degToRad(fade.y),
-    );
   };
 
-  const subscribedAtoms = [
-    atoms.sunProgress,
-    atoms.sunAzimuth,
-    atoms.skyBlue,
-    atoms.cloudScale,
-    atoms.cloudScaleRate,
-    atoms.cloudMix,
-    atoms.cloudCoverage,
-    atoms.cloudDirection,
-    atoms.cloudSpeed,
-    atoms.cloudEvolution,
-    atoms.cloudHorizon,
-    atoms.useCellular,
-    atoms.invertedCellular,
-    atoms.useLiteCellular,
-  ];
+  const subscribedAtoms = [atoms.sunProgress, atoms.sunAzimuth, atoms.skyBlue];
 
   useEffect(() => {
     const unsubs = subscribedAtoms.map((atom) =>
@@ -138,7 +75,7 @@ export const ThreeSky = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, atoms, uniforms]);
 
-  const animation = useAtomValue(atoms.animation);
+  const animation = useAtomValue(atoms.sunAnimation);
 
   useEffect(() => {
     const obj = { val: 0 };
@@ -162,11 +99,14 @@ export const ThreeSky = () => {
   const invertedCellular = useAtomValue(atoms.invertedCellular);
   const useLiteCellular = useAtomValue(atoms.useLiteCellular);
 
-  console.log(useCellular, invertedCellular, useLiteCellular);
+  const cloudNoiseTexture = useMemo(
+    () => texture(store.get(atoms.cloudRenderTarget2).texture, screenUV),
+    [store, atoms.cloudRenderTarget2],
+  );
 
   const colorNode = useMemo(() => {
     const direction = normalize(positionWorld.sub(cameraPosition));
-    const zenithAngle = acos(max(0.0, dot(uniforms.upUniform, direction)));
+    const zenithAngle = acos(max(0.0, dot(vec3(0, 1, 0), direction)));
 
     const { sky, Orange } = skyColor(
       uniforms.sunDirection1,
@@ -184,36 +124,33 @@ export const ThreeSky = () => {
 
     const cloudMask = cloud(
       useCellular,
-      useLiteCellular,
       invertedCellular,
 
-      uniforms.cloudScale,
       uniforms.cloudHorizon,
-      uniforms.cloudDirection,
-      uniforms.cloudSpeed,
-      uniforms.cloudEvolution,
       uniforms.cloudCoverage,
-      uniforms.cloudScaleRate,
       uniforms.cloudMix,
+      uniforms.cloudMaxValue,
       direction,
       zenithAngle,
+      cloudNoiseTexture,
     );
     const clouds = cloudMask.mul(Orange);
 
     return vec4(sky.rgb.add(clouds), 1.0);
-    //return vec4(sky.rgb, 1.0);
-  }, [uniforms, useCellular, invertedCellular, useLiteCellular]);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useCellular, useLiteCellular, invertedCellular]);
 
   return (
-    <mesh scale={SCALE}>
+    <mesh name="ThreeSky" scale={10000}>
       <boxGeometry args={[1, 1, 1]} />
       <meshBasicNodeMaterial
-        key={import.meta.env.DEV ? Math.random() : undefined}
+        key={colorNode.uuid}
         side={BackSide}
         depthWrite={false}
         colorNode={colorNode}
         vertexNode={Fn(() => {
-          const pos = modelViewProjection as ReturnType<typeof vec4>;
+          const pos = modelViewProjection as Node<"vec4">;
           pos.z.assign(pos.w);
           return pos;
         })()}
